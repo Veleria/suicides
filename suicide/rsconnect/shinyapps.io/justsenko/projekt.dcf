@@ -1,0 +1,13 @@
+name: projekt
+title: projekt
+username:
+account: justsenko
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 5394286
+bundleId: 5449928
+url: https://justsenko.shinyapps.io/projekt/
+when: 1641756693.43732
+lastSyncTime: 1641756693.43732
+asMultiple: FALSE
+asStatic: FALSE

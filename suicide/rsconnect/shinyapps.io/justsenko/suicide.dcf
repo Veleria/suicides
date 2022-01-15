@@ -1,0 +1,13 @@
+name: suicide
+title: suicide
+username:
+account: justsenko
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 5006566
+bundleId: 5462070
+url: https://justsenko.shinyapps.io/suicide/
+when: 1642018053.43373
+lastSyncTime: 1642018053.43373
+asMultiple: FALSE
+asStatic: FALSE
