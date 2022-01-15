@@ -1,0 +1,2 @@
+# suicides
+Suicides rates
