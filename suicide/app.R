@@ -21,7 +21,8 @@ data["country.year"] <- NULL
 data["HDI.for.year"] <- NULL
 data = data[data$year != "2016",]
 data <- na.omit(data)
-
+# data$gdp <- as.numeric(data$gdp_year)
+data$gdp_year <- NULL
 
 data$age <- factor(data$age, levels = c("5-14 years", "15-24 years", "25-34 years", "35-54 years", "55-74 years", "75+ years"))
 data$sex <- factor(data$sex, levels = unique(data$sex))
@@ -29,12 +30,8 @@ data$generation <- factor(data$generation, levels = unique(data$generation))
 # data$CODE = countrycode(data$country, 'country.name', "iso3c") #lisan riigi koodi map joonistamiseks
 
 
-
 # #-------------- menshe dannyh na server------------------
-# data["gdp_year"] <- NULL
-# data["gdp_capita"] <- NULL
 # data = data[data$year > 2000,]
-# 
 # data$continent <- countrycode(sourcevar = data[, "country"],
 #                             origin = "country.name",
 #                             destination = "continent")
@@ -46,7 +43,6 @@ data$generation <- factor(data$generation, levels = unique(data$generation))
 # #--------------------------------------------
 
 
-
 struktuur <- str(data)
 s <- summary(data)
 
@@ -56,7 +52,7 @@ min_year = min(uniq_year)
 max_year = max(uniq_year)
 mean_all = round((sum(data$suicides_no) / sum(data$population)) * 100000, 2)
 
-set.seed(3) # just to get the same result
+set.seed(3)
 x <- sample(nrow(data),50)
 d=data[x,]
 
@@ -80,7 +76,7 @@ ui <- fluidPage(
     includeCSS("www/styles.css"),
 
     navbarPage(
-        "Suicide Rates", 
+        "Enesetappude määrad", 
         id = "main_navbar",
         
         #---------- Peamine leht ------------#
@@ -91,23 +87,22 @@ ui <- fluidPage(
             sidebarPanel(
                 p(img(src = 'pink.png',height="50%", width="80%")),
                 helpText(HTML("Andmete visualiseerimise projekt<br>Valeria Juštšenko")),
-                p("Eesmärgid........................................................................."), br(),
+                p("Selle projekti eesmärgid on analüüsida iga riigi suitsiidide määrad ja nende seost enesetappude määra vahel soo, 
+                  vanuse ja põlvkonnaga aastatel 1985–2016. "), 
+                br(),
                 h2("Rakenduse kirjeldus"),
                 a(href = "https://www.kaggle.com/russellyates88/suicide-rates-overview-1985-to-2016", "Link andmestikule", target = "_blank"),br(),
-                
-                # h4("Kuna andmestik on suur, nouab aega andmete laadimiseks"),
                 p("See andmestik pärineb neljast teisest aja ja kohaga
                 seotud andmekogumist ning loodi selleks,
                   et leida signaale, mis on korrelatsioonis suurenenud enesetappude
                   määraga erinevate rühmade vahel kogu sotsiaal-majandusliku spektri
                   ulatuses."), 
                 p(textOutput("rows")), 
-                p("Tab 1 sisaldab andmetabeli, selle struktuuri ja lühikokkuvõte kirjeldus, "),
-                p("Tab 2 sisaldab kaart andmete visualiseerimiseks"),
-                p("Tab 3 sisaldab maailma statistika visualiseerimine"),
-                p("Tab 4 sisaldab statistika visualiseerimine riikide kaupa"),
-                # p("Kaartide joonistamiseks oli kasutatud plotly teek"),
-                 h4("Tunnused"),
+                p("Vaheleht 1 sisaldab andmetabeli, selle struktuuri ja lühikokkuvõte kirjeldus, "),
+                p("Vaheleht 2 sisaldab kaart andmete visualiseerimiseks"),
+                p("Vaheleht 3 sisaldab maailma statistika visualiseerimine"),
+                p("Vaheleht 4 sisaldab statistika visualiseerimine riikide kaupa"),
+                h4("Tunnused"),
                 p(HTML("country - riik <br> year - aasta<br> sex - sugu<br> age - vanuserühm<br>
                 suicides_no - enesetappude arv<br>
                 population - elanikkond (vanuserühma keskmise põhjal) <br>
@@ -115,7 +110,8 @@ ui <- fluidPage(
                 gdp_for_year - Sisemajanduse kogutoodang (SKT) aastas <br>
                 gdp_per_capita - SKT elaniku kohta on mõõdik, mis jagab riigi SKT inimese kohta ja arvutatakse riigi SKT jagamisel selle rahvaarvuga. <br>
                 generation - põlvkond (vanuserühma keskmise põhjal).")),
-                p("Olid kustutatud HDI for year (aasta inimarengu indeks) ja country.year (country-year liitvõti) tunnused.")),br(),
+                p("Olid kustutatud HDI for year (aasta inimarengu indeks) ja country.year (country-year liitvõti) tunnused.")),
+            # br(),
             
             mainPanel(
                 tabsetPanel(
@@ -139,10 +135,9 @@ ui <- fluidPage(
         
         tabPanel(
             "Kaart",
-            titlePanel("Maailma enesetappude määrade ülevaade. Kaart."),hr(),
+            titlePanel("Maailma enesetappude määrade ülevaade. Kaart."), hr(),
             sidebarPanel(
                 h4(paste("Kokku enesetappude arv alates ", min_year," to ", max_year, ' (keskmine 100 000 elaniku kohta)', sep ="")), 
-                
                 br(),
                 p('Source:',  a(href = "https://www.kaggle.com/russellyates88/suicide-rates-overview-1985-to-2016", "Link andmetele", target = "_blank")),
                 p("Sellel vahelehel kuvatakse kuidas paigaldatakse enesetappude arv kokku voi keskmine 100 000 elaniku kohta (vaikimisi)"),
@@ -167,46 +162,40 @@ ui <- fluidPage(
                 plotlyOutput('barchart'),
             )
         ),  
-        
-        #---------- Statistika proov ----------#
 
-        tabPanel(
-          "proov",
-          titlePanel(paste("Proov")),hr(),
-          sidebarPanel(
-            checkboxInput("OneMore", label = h5("Kas lisada riigid?"), F),
-            conditionalPanel(
-              condition = "input.OneMore == 1",
-              h3("Andmed"),
-              selectizeInput('riigid','Riigid',choices = c("All", uniq_country), multiple = TRUE, selected = "Estonia", options = list(maxItems = 5)
-              ),
-            ),
-          ),
-          mainPanel(
-            
-            fluidRow(
-              column(width=6,
-                     plotlyOutput('proov')
-              ),
-              column(width=6,
-                     plotlyOutput("yearPlot"),
-              )
-            ),
-            
-            
-                    # plotlyOutput('proov'),
-                    conditionalPanel(
-                      condition = "input.OneMore == 1",
-                      h3("Andmed"),
-                      # plotlyOutput('proov')
-                    ),conditionalPanel(
-                      condition = "input.OneMore == 0",
-                      h3("Andmed"),
-                      # plotlyOutput("years_trendine")
-                    )
-                    )
-          
-        ), 
+        # #---------- Statistika proov ----------#
+        # 
+        # tabPanel(
+        #   "proov",
+        #   sidebarPanel(
+        #     # checkboxInput("OneMore", label = h5("Kas lisada riigid?"), F),
+        #     # conditionalPanel(
+        #     #   condition = "input.OneMore == 1",
+        #     #   h3("Andmed"),
+        #     #   selectizeInput('riigid','Riigid',choices = c("All", uniq_country), multiple = TRUE, selected = "Estonia", options = list(maxItems = 5)
+        #     #   ),
+        #     # ),
+        #   ),
+        #   mainPanel(
+        #     # fluidRow(
+        #     #   column(width=6,
+        #     #          plotlyOutput('proov')
+        #     #   ),
+        #     #   column(width=6,
+        #     #          # plotlyOutput("yearPlot"),
+        #     #   )
+        #     # ),
+        #             # conditionalPanel(
+        #             #   condition = "input.OneMore == 1",
+        #             #   h3("Andmed"),
+        #             #   # plotlyOutput('proov')
+        #             # ),conditionalPanel(
+        #             #   condition = "input.OneMore == 0",
+        #             #   h3("Andmed"),
+        #             #   # plotlyOutput("years_trendine")
+        #             # )  
+        #     )
+        # ),
         
         #---------- Statistika by World ----------#
         
@@ -214,12 +203,23 @@ ui <- fluidPage(
                  titlePanel(paste("Maailma enesetappude määrade ülevaade ", min_year," to ", max_year, sep ="")),hr(),
                  sidebarPanel(
                      p("Enesetappude määrade ülevaade (100 000 elaniku kohta)"), hr(),
+                     p("Sellel vahelehel kuvatakse kuidas paigaldatakse enesetappude arv kokku voi keskmine 100 000 elaniku kohta (vaikimisi)"),
+                     
                      # h3("Sugu riikide ja aastate kaupa"),
-                     # plotlyOutput("age_by_world")
-                     p("Trendijoon"),
-                     p("Sugu"),
-                     p("Vanus"),
-                     p("Põlvkond"),
+                     HTML("<b>Trendijoon</b> - maailma enesetappude trende aastate jooksul.</br>"),
+                     # HTML("On võimalus lisada riikide trendjooned võrdlemiseks"),                     
+                     # checkboxInput("OneMore", label = h5("Kas lisada riigid võrdlemiseks?"), F),
+                     # conditionalPanel(
+                     #   condition = "input.OneMore == 1",
+                     #   selectizeInput('riigid','Riigid',choices = c("All", uniq_country), multiple = TRUE, selected = "Estonia", options = list(maxItems = 5)
+                     #   ),
+                     # ),
+                     HTML("<b>Sugu</b> - Kui suur on meeste ja naiste enesetappude protsent maailmas? </br> 
+                          Mis aastal on enesetappude arv suurem meeste ja naiste seas?</br>"),
+                     HTML("<b>Vanus</b> - Mis aastal on enesetappude arv suurem vanuse kaupa? </br>
+                          Milline on enesetappude jaotus erinevate vanuserühmade vahel? </br>"),
+                     HTML("<b>Põlvkond</b> - Mis aastal on enesetappude arv suurem põlvkondade kaupa? </br>
+                          Millised on enesetappude määrad erinevate põlvkondade vahel?</br>"),
                  ),
                  mainPanel(
                    tabsetPanel(
@@ -230,7 +230,8 @@ ui <- fluidPage(
                             fluidRow(  
                               column(width=8,
                                      h3("Trendijoon maailmas"), plotlyOutput("years_trendine")),
-                              column(width=4,
+                              column(width=8,
+                                     # plotlyOutput('proov')
                             ))),
                    
                    
@@ -246,9 +247,9 @@ ui <- fluidPage(
                    tabPanel("Vanus",
                             fluidRow(
                               column(width=8,
-                                     h3("Vanus"), plotlyOutput("trend_age")  ),
+                                     h3("Trendijoon vanuse järgi"), plotlyOutput("trend_age")  ),
                               column(width=4,
-                                     h3("Trendijoon vanuse järgi"), plotlyOutput("age_pie_world") 
+                                     h3("Vanus protsentides"), plotlyOutput("age_pie_world") 
                                      # plotlyOutput("age_bar_world")
                                      )
                             )),
