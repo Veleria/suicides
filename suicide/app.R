@@ -7,7 +7,7 @@ library(plotly)
 library(dplyr)
 library(summarytools)
 library(countrycode)
-
+library(corrplot)
 
 #-------------------------------------- ANDMED -----------------------------------------#
 
@@ -21,8 +21,9 @@ data["country.year"] <- NULL
 data["HDI.for.year"] <- NULL
 data = data[data$year != "2016",]
 data <- na.omit(data)
-# data$gdp <- as.numeric(data$gdp_year)
-data$gdp_year <- NULL
+data$gdp_year <- as.numeric(gsub(",","", data$gdp_year))/1000000
+names(data)[8] <- "gdp_year_mln"
+# data %>% mutate('gdp_year' = as.numeric(gsub(",","", 'gdp_year')))
 
 data$age <- factor(data$age, levels = c("5-14 years", "15-24 years", "25-34 years", "35-54 years", "55-74 years", "75+ years"))
 data$sex <- factor(data$sex, levels = unique(data$sex))
@@ -56,12 +57,6 @@ set.seed(3)
 x <- sample(nrow(data),50)
 d=data[x,]
 
-# grouped_country <- data %>% group_by(country)
-# grouped_year <- data %>% group_by(year) 
-# # grouped_generation <- data %>% group_by(generation)
-# grouped_age <- data %>% group_by(age)
-# grouped_sex <- data %>%  select(country, year, sex, suicides_no) %>% group_by(country, year, sex) %>% summarize(sum = as.integer(sum(suicides_no)))
-
 filtered_map <- data %>%  
     group_by(country) %>%
     summarize(mean = round(mean(suicides.100k.pop),2)) %>%
@@ -83,7 +78,7 @@ ui <- fluidPage(
         
         tabPanel(
             "Kirjeldus",
-            titlePanel(paste("Enesetappude määrade ülevaade ", min_year," kuni ", max_year, sep ="")),hr(),
+            titlePanel(paste("Enesetappude määrade ülevaade ", min_year," kuni ", max_year, ". Projekti kirjeldus.", sep ="")),hr(),
             sidebarPanel(
                 p(img(src = 'pink.png',height="50%", width="80%")),
                 helpText(HTML("Andmete visualiseerimise projekt<br>Valeria Juštšenko")),
@@ -111,7 +106,6 @@ ui <- fluidPage(
                 gdp_per_capita - SKT elaniku kohta on mõõdik, mis jagab riigi SKT inimese kohta ja arvutatakse riigi SKT jagamisel selle rahvaarvuga. <br>
                 generation - põlvkond (vanuserühma keskmise põhjal).")),
                 p("Olid kustutatud HDI for year (aasta inimarengu indeks) ja country.year (country-year liitvõti) tunnused.")),
-            # br(),
             
             mainPanel(
                 tabsetPanel(
@@ -137,12 +131,12 @@ ui <- fluidPage(
             "Kaart",
             titlePanel("Maailma enesetappude määrade ülevaade. Kaart."), hr(),
             sidebarPanel(
-                h4(paste("Kokku enesetappude arv alates ", min_year," to ", max_year, ' (keskmine 100 000 elaniku kohta)', sep ="")), 
+                h4(paste("Kokku enesetappude arv alates ", min_year," to ", max_year, ' (keskmine 100 000 elaniku kohta või kokku inimesi)', sep ="")), 
                 br(),
                 p('Source:',  a(href = "https://www.kaggle.com/russellyates88/suicide-rates-overview-1985-to-2016", "Link andmetele", target = "_blank")),
                 p("Sellel vahelehel kuvatakse kuidas paigaldatakse enesetappude arv kokku voi keskmine 100 000 elaniku kohta (vaikimisi)"),
                 p("Samuti on võimalik vaadata statistika määratud vahemikel."),
-                p("Kaartide joonistamiseks oli kasutatud plotly teek. Ka oli proovitud highcharter teek, aga see tegi rakendus aeglasemaks."),
+                p("Kaartide joonistamiseks oli kasutatud plotly teek. Ka oli proovitud highcharter teek, aga see tegi rakendus aeglasemaks ja sellepärast oli lõppus kustutatud"),
                 selectInput(
                     'tunnus',
                     'Select Tunnus',
@@ -202,8 +196,8 @@ ui <- fluidPage(
         tabPanel("Maailma statistika",
                  titlePanel(paste("Maailma enesetappude määrade ülevaade ", min_year," to ", max_year, sep ="")),hr(),
                  sidebarPanel(
-                     p("Enesetappude määrade ülevaade (100 000 elaniku kohta)"), hr(),
-                     p("Sellel vahelehel kuvatakse kuidas paigaldatakse enesetappude arv kokku voi keskmine 100 000 elaniku kohta (vaikimisi)"),
+                     h4("Enesetappude määrade ülevaade (100 000 elaniku kohta)"), hr(),
+                     p("Sellel vahelehel kuvatakse kuidas paigaldatakse enesetappude arv keskmiselt 100 000 elaniku kohta"),
                      
                      # h3("Sugu riikide ja aastate kaupa"),
                      HTML("<b>Trendijoon</b> - maailma enesetappude trende aastate jooksul.</br>"),
@@ -222,20 +216,16 @@ ui <- fluidPage(
                           Millised on enesetappude määrad erinevate põlvkondade vahel?</br>"),
                  ),
                  mainPanel(
+                   h3(paste("Globaalsed enesetapud (100 000 kohta) ",min_year," kuni ",max_year,' aastate jooksul',sep = "")),
                    tabsetPanel(
                      type = "tabs",
                    tabPanel("Trendijoon",
-                            h3(paste("Globaalsed enesetapud (100 000 kohta) ",min_year," kuni ",max_year,' aastate jooksul',sep = "")),
-                              
                             fluidRow(  
                               column(width=8,
                                      h3("Trendijoon maailmas"), plotlyOutput("years_trendine")),
                               column(width=8,
                                      # plotlyOutput('proov')
                             ))),
-                   
-                   
-                     
                    tabPanel("Sugu",
                       fluidRow(  
                         column(width=8,
@@ -243,14 +233,12 @@ ui <- fluidPage(
                         column(width=4,
                             h3("Sugu"), plotlyOutput("gender_all"))  )
                    ),
-                   
                    tabPanel("Vanus",
                             fluidRow(
                               column(width=8,
                                      h3("Trendijoon vanuse järgi"), plotlyOutput("trend_age")  ),
                               column(width=4,
                                      h3("Vanus protsentides"), plotlyOutput("age_pie_world") 
-                                     # plotlyOutput("age_bar_world")
                                      )
                             )),
                    tabPanel("Põlvkond",
@@ -259,14 +247,8 @@ ui <- fluidPage(
                                      h3("Trendijoon põlvkonna järgi"), plotlyOutput("trend_generation") ),
                               column(width=4,
                                      h3("Põlvkond"), plotlyOutput("generation_all") )
-                            )),
-                   
-                 )
-                 )
-        ),
+                            ))))),
         
-        
-
         
         #---------- Statistika riikide kaupa-----------#
         
@@ -309,58 +291,26 @@ ui <- fluidPage(
                        h3("Trendijoon sugu järgi"), plotlyOutput("yearsLine"),
                        ),
                 #---------- Statistika sugu kaupa-----------#       
-                column(width=4, h3("Vanuse, riikide ja aastate kaupa. Proov2"),plotlyOutput('proov2'))  
+                column(width=4, h3("Vanuse, riikide ja aastate kaupa."),plotlyOutput('age_sex_bar'))  
                 ),
               
               fluidRow(
                   #---------- Statistika vanuse kaupa-----------#
-                  column(width=4,h3("Vanuse jargi"), plotlyOutput("age_pie")),  # plotlyOutput("age_bar")
+                  column(width=4,h3("Vanuse järgi"), plotlyOutput("age_pie")),  # plotlyOutput("age_bar")
                   #---------- Statistika sugu kaupa-----------#       
                   column(width=4, h3("Sugu, riikide ja aastate kaupa"), plotlyOutput("gender")),  
-              #     ),
-              # fluidRow(  
-                  # column(width=4, h3("Proov2"),  plotlyOutput("age_bar")),
                    #-------- Statistika  generation kaupa---------#
                   column(width=4,  h3("Polvkonna ja aastate kaupa"), plotlyOutput("generation"))  ),
               ),
     )))
 
 
-
 #-------------------------------------------------------------------- SERVERI OSA --------------------------------------------------------------------------#
+
 
 server <- function(input, output) {
   
           #------------------------ Proov --------------------------#
-          
-          filtered_proov <- reactive({
-            data %>%
-              # select(country, year, age, sex, suicides.100k.pop) %>%
-              filter(country == input$country) %>%
-              filter(year >= input$slider_years_gpaph[1] & year <= input$slider_years_gpaph[2]) %>%
-              group_by(age, sex) %>%
-              summarize(sum = round(sum(.data[[input$tunnus_all]]))) #round(mean(suicides.100k.pop), 2)
-          })
-        
-          output$proov2 <- renderPlotly({
-            title = if(input$tunnus_all=='suicides.100k.pop'){'Enesetappu 100 000 elaniku kohta'} else {'Enesetapud kokku'}
-            bar_age <- plot_ly(
-              filtered_proov()%>% filter(sex == 'male'),
-              x = ~ age,
-              y = ~ sum,
-              type = 'bar', 
-              name = 'mees'
-            )
-            bar_age <- bar_age %>% add_trace(data=filtered_proov()%>% filter(sex == 'female'), values = ~sum, labels = ~age, textinfo='label+percent', name="naine")
-            bar_age <- bar_age %>% layout(yaxis = list(title = title), xaxis = list(title = 'Vanus'), barmode = 'stack')
-          })
-          
-          # output$proov <- renderPlotly({
-          #   plot_ly(filtered_proov(), x =~sum, y =~age, color = ~uniq_year, colors = "Accent") %>%
-          #   add_histogram()
-          # })
-          
-          
           
           filtered_riik <- reactive({
             validate(
@@ -373,7 +323,7 @@ server <- function(input, output) {
           })
           
           output$proov <- renderPlotly({
-            if(nrow(filtered_riik()) == 0) return()
+            # if(nrow(filtered_riik()) == 0) return()
             trendine <-
               plot_ly(
                 filtered_riik(),
@@ -394,11 +344,11 @@ server <- function(input, output) {
                 #------------------------ Tekst --------------------------#
   
   output$year1 <- renderText({ 
-    paste("Enesetappude määrade ülevaade aastate kaupa: ", input$slider_years_map[1], " kuni ", input$slider_years_map[2], " (keskmine 100 000 elaniku kohta)", sep ="")
+    paste("Enesetappude määrade ülevaade aastate kaupa: ", input$slider_years_map[1], " kuni ", input$slider_years_map[2], sep ="")
   })
   
   output$year2 <- renderText({
-    paste("Enesetappude määrade ülevaade aastate kaupa: ", input$slider_years_map[1], " kuni ", input$slider_years_map[2], " (keskmine 100 000 elaniku kohta)"," riikide lõigus", sep ="")
+    paste("Enesetappude määrade ülevaade aastate kaupa: ", input$slider_years_map[1], " kuni ", input$slider_years_map[2]," riikide lõigus", sep ="")
   })
   
   output$rows <- renderText({
@@ -438,7 +388,7 @@ server <- function(input, output) {
     # library(ggcorrplot)
     
     
-    library(corrplot)
+
     output$pm <- renderPlot({
         table = cor(Filter(is.numeric, data))
         corrplot(table, method = "color",   
@@ -457,31 +407,21 @@ server <- function(input, output) {
     
                 #----------------- Kaart. Plotly by few years -------------------#
 
-    total <- reactive({
-        data %>%
+    filtered_map <- reactive({
+        dt <- data %>%
             filter(year >= input$slider_years_map[1] & year <= input$slider_years_map[2]) %>%
-            group_by(country) %>%
-            summarize(mean = round(mean(.data[[input$tunnus]]),2)) %>%
-            mutate(iso3 = countrycode(country, "country.name", "iso3c"))
+            group_by(country) 
+        if(input$tunnus=='suicides.100k.pop')
+          {dt <- dt %>% summarize(mean = round(mean(.data[[input$tunnus]]),2))}
+        else
+        {dt <- dt %>% summarize(mean = round(sum(.data[[input$tunnus]]),2))}
+        dt <- dt %>% mutate(iso3 = countrycode(country, "country.name", "iso3c"))
     })
-    
-    total_sum <- reactive({
-      data %>%
-        filter(year >= input$slider_years_map[1] & year <= input$slider_years_map[2]) %>%
-        group_by(country) %>%
-        summarize(mean = round(sum(.data[[input$tunnus]]),2)) %>%
-        mutate(iso3 = countrycode(country, "country.name", "iso3c"))
-    })
-    
+
     output$map <-  renderPlotly({
       title = if(input$tunnus=='suicides.100k.pop'){'Keskmine'} else {'Kokku'}
       l =  list(color = toRGB("grey"), width = 0.7)
-      if(input$tunnus=='suicides.100k.pop')
-        {fig <- plot_geo(total())}
-      else
-        {fig <- plot_geo(total_sum())}
-        
-        # fig <- plot_geo(total())
+        fig <- plot_geo(filtered_map())
         fig <- fig %>% add_trace(
             type="choroplethmapbox",
             z = ~ mean,
@@ -510,29 +450,11 @@ server <- function(input, output) {
     output$barchart <-  renderPlotly({
       title = if(input$tunnus=='suicides.100k.pop'){'Enesetappu 100 000 \nelaniku kohta'} else {'Enesetapud kokku'}
       title2 = if(input$tunnus=='suicides.100k.pop'){'Keskmine'} else {'Kokku'}
-      if(input$tunnus=='suicides.100k.pop')
-      {
-        barchart <- total() %>%
+        barchart <- filtered_map() %>%
           arrange(mean)  %>%
           # head(10) %>%
           plot_ly(x = ~country, y = ~mean, color = ~mean, type = "bar", colors = "viridis",showlegend = FALSE)
         barchart <- barchart %>% colorbar(title = title2)  %>% layout(yaxis = list(title = title), xaxis = list(title = 'Riigid'), barmode = 'stack')
-        }
-      else
-      {
-        barchart <- total_sum() %>%
-          arrange(mean)  %>%
-          # head(10) %>%
-          plot_ly(x = ~country, y = ~mean, color = ~mean, type = "bar", colors = "viridis",showlegend = FALSE)
-        barchart <- barchart %>% colorbar(title = title2) %>% layout(yaxis = list(title = title), xaxis = list(title = 'Riigid'), barmode = 'stack')
-        }
-      
-      # barchart <- total() %>%
-      #       arrange(mean)  %>%
-      #       # head(10) %>%
-      #       plot_ly(x = ~country, y = ~mean, color = ~mean, type = "bar", colors = "viridis")
-      # barchart <- barchart %>% layout(yaxis = list(title = 'Enesetappu 100 000 elaniku kohta'), xaxis = list(title = 'Riigid'), barmode = 'stack')
-
     })
 
     
@@ -603,6 +525,33 @@ server <- function(input, output) {
         hide_colorbar(years_trend)
     })
     
+    #--------------------- Satatistika vanuse ja sugu kohta ----------------------#
+    filtered_age_sex <- reactive({
+      dt <- data %>%
+        # select(country, year, age, sex, suicides.100k.pop) %>%
+        filter(country == input$country) %>%
+        filter(year >= input$slider_years_gpaph[1] & year <= input$slider_years_gpaph[2]) %>%
+        group_by(age, sex) #%>%
+      # summarize(sum = round(sum(.data[[input$tunnus_all]]))) #round(mean(suicides.100k.pop), 2)
+      if(input$tunnus_all=='suicides.100k.pop')
+      {dt %>%summarize(sum = round(mean(.data[[input$tunnus_all]])))}
+      else
+      {dt %>% summarize(sum = round(sum(.data[[input$tunnus_all]])))}
+    })
+    
+    output$age_sex_bar <- renderPlotly({
+      title = if(input$tunnus_all=='suicides.100k.pop'){'Enesetappu 100 000 elaniku kohta'} else {'Enesetapud kokku'}
+      bar_age <- plot_ly(
+        filtered_age_sex()%>% filter(sex == 'male'),
+        x = ~ age,
+        y = ~ sum,
+        type = 'bar', 
+        name = 'mees'
+      )
+      bar_age <- bar_age %>% add_trace(data=filtered_age_sex()%>% filter(sex == 'female'), values = ~sum, labels = ~age, textinfo='label+percent', name="naine")
+      bar_age <- bar_age %>% layout(yaxis = list(title = title), xaxis = list(title = 'Vanus'), barmode = 'stack')
+    })
+    
     
     #--------------------- Satatistika sugu kohta / Sex ----------------------#
     
@@ -640,7 +589,7 @@ server <- function(input, output) {
     filtered_age_world <- reactive({
         data %>%
             group_by(age) %>%
-            summarise(mean = round(mean(suicides.100k.pop), 2)) 
+            summarise(mean = round(sum(suicides.100k.pop), 2)) 
     })
 
     output$age_pie_world <- renderPlotly({
@@ -648,16 +597,16 @@ server <- function(input, output) {
             plot_ly(type='pie', labels = ~age, values = ~mean, textinfo='label+percent')
     })
 
-    output$age_bar_world <- renderPlotly({
-        bar_age <- plot_ly(
-            filtered_age_world(),
-            x = ~ age,
-            y = ~ mean,
-            type = 'bar',
-            name = 'Sum'
-        )
-        bar_age <- bar_age %>% layout(yaxis = list(title = 'Enesetappu 100 000 elaniku kohta'), xaxis = list(title = 'Vanus'), barmode = 'stack')
-    })
+    # output$age_bar_world <- renderPlotly({
+    #     bar_age <- plot_ly(
+    #         filtered_age_world(),
+    #         x = ~ age,
+    #         y = ~ mean,
+    #         type = 'bar',
+    #         name = 'Sum'
+    #     )
+    #     bar_age <- bar_age %>% layout(yaxis = list(title = 'Enesetappu 100 000 elaniku kohta'), xaxis = list(title = 'Vanus'), barmode = 'stack')
+    # })
     
     filtered_trend_age <- reactive({
       data %>%
@@ -676,13 +625,13 @@ server <- function(input, output) {
           # values = ~ sex,
           # color = ~mean,
           type = 'scatter',
-          mode = 'lines+markers', name="5-14 years"
+          mode = 'lines+markers', name="5-14 aastat"
         )
-      trendine <- trendine %>% add_trace(data=filtered_trend_age() %>% filter(age == '15-24 years'), values = ~mean, labels = ~age, textinfo='label+percent', name="15-24 years") #y=~mean, 
-      trendine <- trendine %>% add_trace(data=filtered_trend_age() %>% filter(age == '25-34 years'), values = ~mean, labels = ~age, textinfo='label+percent', name="25-34 years") #y=~mean, 
-      trendine <- trendine %>% add_trace(data=filtered_trend_age() %>% filter(age == '35-54 years'), values = ~mean, labels = ~age, textinfo='label+percent', name="35-54 years") #y=~mean, 
-      trendine <- trendine %>% add_trace(data=filtered_trend_age() %>% filter(age == '55-74 years'), values = ~mean, labels = ~age, textinfo='label+percent', name="55-74 years") #y=~mean, 
-      trendine <- trendine %>% add_trace(data=filtered_trend_age() %>% filter(age == '75+ years'), values = ~mean, labels = ~age, textinfo='label+percent', name="75+ years") #y=~mean, 
+      trendine <- trendine %>% add_trace(data=filtered_trend_age() %>% filter(age == '15-24 years'), values = ~mean, labels = ~age, textinfo='label+percent', name="15-24 aastat") #y=~mean, 
+      trendine <- trendine %>% add_trace(data=filtered_trend_age() %>% filter(age == '25-34 years'), values = ~mean, labels = ~age, textinfo='label+percent', name="25-34 aastat") #y=~mean, 
+      trendine <- trendine %>% add_trace(data=filtered_trend_age() %>% filter(age == '35-54 years'), values = ~mean, labels = ~age, textinfo='label+percent', name="35-54 aastat") #y=~mean, 
+      trendine <- trendine %>% add_trace(data=filtered_trend_age() %>% filter(age == '55-74 years'), values = ~mean, labels = ~age, textinfo='label+percent', name="55-74 aastat") #y=~mean, 
+      trendine <- trendine %>% add_trace(data=filtered_trend_age() %>% filter(age == '75+ years'), values = ~mean, labels = ~age, textinfo='label+percent', name="75+ aastat") #y=~mean, 
       
       trendine <- trendine %>% layout(yaxis = list(title = 'Enesetappu 100 000 elaniku kohta'), xaxis = list(title = 'Aastad')) #%>% hide_legend()
       hide_colorbar(trendine)
@@ -693,34 +642,28 @@ server <- function(input, output) {
 
                 #---------Vanus aastate ja riigi kaupa ----------#
     filtered_age_by <- reactive({
-        data %>%
-        select(country, year, age, suicides.100k.pop) %>%
+      dt <- data %>%
+        select(country, year, age, suicides.100k.pop, suicides_no) %>%
             filter(country == input$country) %>%
             filter(year >= input$slider_years_gpaph[1] & year <= input$slider_years_gpaph[2]) %>%
-            group_by(age) %>%
-            summarize(mean = round(mean(.data[[input$tunnus_all]]))) #round(mean(suicides.100k.pop), 2)
+            group_by(age) #%>%
+            # summarize(mean = round(mean(.data[[input$tunnus_all]]))) #round(mean(suicides.100k.pop), 2)
+      if(input$tunnus_all=='suicides.100k.pop')
+      {
+        dt <- dt %>% summarize(mean = round(sum(.data[[input$tunnus_all]])))
+        }
+      else
+      {
+        dt <- dt %>% summarize(mean = round(sum(.data[[input$tunnus_all]])))
+        }
     })
-    
-    filtered_age_by_sum <- reactive({
-      data %>%
-        select(country, year, age, suicides_no) %>%
-        filter(country == input$country) %>%
-        filter(year >= input$slider_years_gpaph[1] & year <= input$slider_years_gpaph[2]) %>%
-        group_by(age) %>%
-        summarize(mean = round(sum(.data[[input$tunnus_all]]))) #round(mean(suicides.100k.pop), 2)
-    })
+
     
     output$age_pie <- renderPlotly({
       title = if(input$tunnus_all=='suicides.100k.pop'){'Enesetappu 100 000 elaniku kohta'} else {'Enesetapud kokku'}
-        
-      
-      pie_age <- 
-        if(input$tunnus_all=='suicides.100k.pop')
-        {filtered_age_by()}
-      else
-      {filtered_age_by_sum()} 
-      pie_age <- pie_age %>%  plot_ly(type='pie', labels = ~age, values = ~mean, textinfo='label+percent', domain= list(row = 0, column=0))
-        pie_age <- pie_age %>%
+      pie_age <- filtered_age_by() %>%
+      plot_ly(type='pie', labels = ~age, values = ~mean, textinfo='label+percent', domain= list(row = 0, column=0))
+      pie_age <- pie_age %>%
             layout(title = title,
                    xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
                    yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE)
@@ -730,7 +673,11 @@ server <- function(input, output) {
     output$age_bar <- renderPlotly({
         title = if(input$tunnus_all=='suicides.100k.pop'){'Enesetappu 100 000 elaniku kohta'} else {'Enesetapud kokku'}
         bar_age <- plot_ly(
-            filtered_age_by(),
+          filtered_age_by(),
+          # if(input$tunnus_all=='suicides.100k.pop')
+          # {filtered_age_by()}
+          # else
+          # {filtered_age_by_sum()} ,
             x = ~ age,
             y = ~ sum,
             type = 'bar',
@@ -739,17 +686,6 @@ server <- function(input, output) {
         # bar_age <- bar_age %>% add_trace(data=filtered_age_by()%>% filter(age == '75+ years'), values = ~sum, labels = ~age, textinfo='label+percent', name="Estonia")
         bar_age <- bar_age %>% layout(yaxis = list(title = title), xaxis = list(title = 'Vanus'), barmode = 'stack')
     })
-
-
-    # output$age_both <- renderPlotly({
-    #     plot_ly(filtered_age_by(), x = ~ age, y = ~sum, type = 'bar') %>%
-    #         layout(yaxis = list(title = 'Enesetappu 100 000 elaniku kohta'), xaxis = list(title = 'Vanus',domain = c(0, 0.5)), barmode = 'stack') %>%
-    #         add_trace(filtered_age_pie(), labels = ~age, values = ~sum, textinfo='label+percent', type = 'pie', 
-    #                   domain = list(x = c(0.5, 1)))
-    #     # subplot(list(pie_age, bar_age))  #  %>% hide_legend(), nrows=2, margin = 0.05
-    # })
-    
-
 
     
     #------------------------------- generation --------------------------------#
@@ -773,23 +709,27 @@ server <- function(input, output) {
     
               #------ generation by tunnuste kaupa ------#
     filtered_generation <- reactive({
-        data %>%
+      dt <- data %>%
             filter(year >= input$slider_years_gpaph[1] & year <= input$slider_years_gpaph[2]) %>%
             filter(country == input$country) %>%
-            group_by(generation) %>%
-            summarize(sum = round(sum(.data[[input$tunnus_all]])))
+            group_by(generation) 
+      if(input$tunnus_all=='suicides.100k.pop')
+      {dt <- dt %>% summarize(sum = round(mean(.data[[input$tunnus_all]])))}
+      else
+      {dt <- dt %>% summarize(sum = round(sum(.data[[input$tunnus_all]])))}
     })
+
     
     output$generation <- renderPlotly({
       title = if(input$tunnus_all=='suicides.100k.pop'){'Enesetappu 100 000 elaniku kohta'} else {'Enesetapud kokku'}
       generation_bar <- plot_ly(
-            filtered_generation(),
+        filtered_generation(),
             x = ~ generation,
             y = ~ sum,
             type = 'bar',
             name = 'Summa by generation'
         )
-      generation_bar <- generation_bar %>% layout(yaxis = list(title = title), xaxis = list(title = 'Polvkond'), barmode = 'stack')
+      generation_bar <- generation_bar %>% layout(yaxis = list(title = title), xaxis = list(title = 'Põlvkond'), barmode = 'stack')
         
     })
     
@@ -797,7 +737,7 @@ server <- function(input, output) {
       data %>%
         select(year, generation, suicides.100k.pop) %>%
         group_by(generation, year) %>%
-        summarise(mean = round(mean(suicides.100k.pop))) # mean(suicides.100k.pop))
+        summarise(mean = round(mean(suicides.100k.pop))) 
     })
     
     
@@ -832,7 +772,6 @@ server <- function(input, output) {
     })
     
     output$gender_all <-  renderPlotly({
-      
         gender_pie <- filtered_gender_all() %>% 
             plot_ly(type='pie', labels = ~sex, values = ~sum, textinfo='label+percent')
         gender_pie <- gender_pie %>% 
@@ -842,18 +781,25 @@ server <- function(input, output) {
   })  
     
     
-      #---------- riikide ja aastate kaupa -----------#
+      #---------- Sugu riikide ja aastate kaupa -----------#
     
-    filtered_gender_by <- reactive({
-        data %>%
+    filtered_gender_by_country <- reactive({
+      dt <- data %>%
             filter(year >= input$slider_years_gpaph[1] & year <= input$slider_years_gpaph[2]) %>%
             filter(country == input$country) %>%
-            group_by(sex) %>%
-            summarize(sum = round(sum(.data[[input$tunnus_all]])))
+            group_by(sex) 
+      if(input$tunnus_all=='suicides.100k.pop')
+      {
+      dt <- dt %>% summarize(sum = round(sum(.data[[input$tunnus_all]])))
+      }
+      else
+      {
+        dt <- dt %>% summarize(sum = round(sum(.data[[input$tunnus_all]])))
+        }
     })
-    
+
     output$gender <-  renderPlotly({
-        fig2 <- filtered_gender_by() %>% 
+        fig2 <- filtered_gender_by_country() %>% 
             plot_ly(type='pie', labels = ~sex, values = ~sum, textinfo='label+percent')
         
         fig2 <- fig2 %>% 
