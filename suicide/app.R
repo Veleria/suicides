@@ -93,10 +93,11 @@ ui <- fluidPage(
                   määraga erinevate rühmade vahel kogu sotsiaal-majandusliku spektri
                   ulatuses."), 
                 p(textOutput("rows")), 
-                p("Vaheleht 1 sisaldab andmetabeli, selle struktuuri ja lühikokkuvõte kirjeldus, "),
-                p("Vaheleht 2 sisaldab kaart andmete visualiseerimiseks"),
-                p("Vaheleht 3 sisaldab maailma statistika visualiseerimine"),
-                p("Vaheleht 4 sisaldab statistika visualiseerimine riikide kaupa"),
+                p(HTML("Vaheleht <b>'Kirjeldus'</b> sisaldab andmetabeli, selle struktuuri ja lühikokkuvõte kirjeldus, ")),
+                p(HTML("Vaheleht <b>'Kaart'</b> sisaldab kaart andmete visualiseerimiseks")),
+                p(HTML("Vaheleht <b>'Maailma statistika'</b> sisaldab maailma statistika visualiseerimine")),
+                p(HTML("Vaheleht <b>'Statistika riikide kaupa'</b> sisaldab statistika visualiseerimine riikide kaupa,
+                  kus on võimalik valida ka aastate vahemik visualiseerimiseks")),
                 h4("Tunnused"),
                 p(HTML("country - riik <br> year - aasta<br> sex - sugu<br> age - vanuserühm<br>
                 suicides_no - enesetappude arv<br>
@@ -288,7 +289,7 @@ ui <- fluidPage(
               fluidRow(
                 column(width=8,
                        # h3(paste("Generation tunnuse ", selectInput$generation_by_year," ja ", selectInput$generation_by_year, ' aastate kaupa', sep ="")),
-                       h3("Trendijoon sugu järgi"), plotlyOutput("yearsLine"),
+                       h3("Trendijoon aasta järgi"), plotlyOutput("yearsLine"),
                        ),
                 #---------- Statistika sugu kaupa-----------#       
                 column(width=4, h3("Vanuse, riikide ja aastate kaupa."),plotlyOutput('age_sex_bar'))  
@@ -487,37 +488,37 @@ server <- function(input, output) {
                 #----------- Statistika aastate ja riigi kaupa ---------------#
     filtered_years_by_country <- reactive({
       
-        data %>%
+        dt <- data %>%
             filter(year >= input$slider_years_gpaph[1] & year <= input$slider_years_gpaph[2]) %>%
             filter(country == input$country) %>%
-            group_by(year) %>%
-            summarize(mean = mean(.data[[input$tunnus_all]]))  # summarize(mean = round((sum(suicides_no) / sum(population)) * 100000, 2))
+            group_by(year) #%>%
+            # summarize(mean = round(mean(.data[[input$tunnus_all]])))  # summarize(mean = round((sum(suicides_no) / sum(population)) * 100000, 2))
+            if(input$tunnus_all=='suicides.100k.pop')
+            {dt <- dt %>% summarize(mean = round(mean(.data[[input$tunnus_all]]),2))}
+            else
+            {dt <- dt %>% summarize(mean = round(sum(.data[[input$tunnus_all]])))}
     })
     
-    filtered_years_by_country_sum <- reactive({
-      data %>%
-        filter(year >= input$slider_years_gpaph[1] & year <= input$slider_years_gpaph[2]) %>%
-        filter(country == input$country) %>%
-        group_by(year) %>%
-        summarize(mean = round(sum(.data[[input$tunnus_all]]),2)) 
-    })
+    # filtered_years_by_country_sum <- reactive({
+    #   data %>%
+    #     filter(year >= input$slider_years_gpaph[1] & year <= input$slider_years_gpaph[2]) %>%
+    #     filter(country == input$country) %>%
+    #     group_by(year) %>%
+    #     summarize(mean = round(sum(.data[[input$tunnus_all]]),2)) 
+    # })
     
     output$yearsLine <- renderPlotly({
       title = if(input$tunnus_all=='suicides.100k.pop'){'Enesetappu 100 000 elaniku kohta'} else {'Enesetapud kokku, inim'}
-
       years_trend <-
             plot_ly(
-              if(input$tunnus_all=='suicides.100k.pop')
-              {filtered_years_by_country()}
-              else
-              {filtered_years_by_country_sum()},
+                filtered_years_by_country(),
                 x = ~ year,
                 y = ~ mean,
                 color = ~mean,
                 type = 'scatter',
                 mode = 'lines+markers',
               hovertemplate = paste(
-                "%{x:.0f} aastas <br>%{y:.0f} %{yaxis.title.text}"
+                "%{x:.0f} aastas <br>%{y:.2f} %{yaxis.title.text}"
               )
             )
         years_trend <- years_trend %>% layout(yaxis = list(title = title), xaxis = list(title = 'Aastad'))
@@ -532,9 +533,8 @@ server <- function(input, output) {
         filter(country == input$country) %>%
         filter(year >= input$slider_years_gpaph[1] & year <= input$slider_years_gpaph[2]) %>%
         group_by(age, sex) #%>%
-      # summarize(sum = round(sum(.data[[input$tunnus_all]]))) #round(mean(suicides.100k.pop), 2)
       if(input$tunnus_all=='suicides.100k.pop')
-      {dt %>%summarize(sum = round(mean(.data[[input$tunnus_all]])))}
+      {dt %>%summarize(sum = round(mean(.data[[input$tunnus_all]]),2))}
       else
       {dt %>% summarize(sum = round(sum(.data[[input$tunnus_all]])))}
     })
@@ -558,7 +558,6 @@ server <- function(input, output) {
     filtered_sex <- reactive({
       data %>%
         select(year, sex, suicides.100k.pop) %>%
-        # filter(sex == 'male') %>%
         group_by(sex, year) %>%
         summarise(mean = round(mean(suicides.100k.pop),2))
     })
@@ -571,25 +570,24 @@ server <- function(input, output) {
           man,
           x = ~ year,
           y = ~ mean,
-          # values = ~ sex,
-          # color = ~mean,
           type = 'scatter',
           mode = 'lines+markers', name="Mees"
         )
       trendine <- trendine %>% add_trace(data=woman, values = ~mean, labels = ~sex, textinfo='label+percent', name="Naine") 
       trendine <- trendine %>% layout(yaxis = list(title = 'Enesetappu 100 000 elaniku kohta'), xaxis = list(title = 'Aastad')) 
-      trendine <- trendine %>% add_trace(y = mean_all, type = "scatter", mode = "lines", name = " ", line = list(width = 1, dash = 'dash'),
+      trendine <- trendine %>% add_trace(y = mean_all, type = "scatter", mode = "lines", name = " ", 
+                                         line = list(width = 1, dash = 'dash'),
                                          hovertemplate = paste("Keskmine %{y:.2f} kokku" )) %>% colorbar(title = "Keskmine")
     })
     
     
     #--------------------- Satatistika vanuse kohta / Age ----------------------#
-                #---------Vanus kokku   ----------#
+                #--------- Vanus kokku ----------#
     
     filtered_age_world <- reactive({
         data %>%
             group_by(age) %>%
-            summarise(mean = round(sum(suicides.100k.pop), 2)) 
+            summarise(mean = round(mean(suicides.100k.pop), 2)) 
     })
 
     output$age_pie_world <- renderPlotly({
@@ -612,7 +610,7 @@ server <- function(input, output) {
       data %>%
         select(year, age, suicides.100k.pop) %>%
         group_by(age, year) %>%
-        summarise(mean = as.integer(mean(suicides.100k.pop))) # mean(suicides.100k.pop))
+        summarise(mean = round(mean(suicides.100k.pop),2)) # mean(suicides.100k.pop))
     })
     
 
@@ -646,11 +644,10 @@ server <- function(input, output) {
         select(country, year, age, suicides.100k.pop, suicides_no) %>%
             filter(country == input$country) %>%
             filter(year >= input$slider_years_gpaph[1] & year <= input$slider_years_gpaph[2]) %>%
-            group_by(age) #%>%
-            # summarize(mean = round(mean(.data[[input$tunnus_all]]))) #round(mean(suicides.100k.pop), 2)
+            group_by(age) 
       if(input$tunnus_all=='suicides.100k.pop')
       {
-        dt <- dt %>% summarize(mean = round(sum(.data[[input$tunnus_all]])))
+        dt <- dt %>% summarize(mean = round(mean(.data[[input$tunnus_all]]),2))
         }
       else
       {
@@ -674,10 +671,6 @@ server <- function(input, output) {
         title = if(input$tunnus_all=='suicides.100k.pop'){'Enesetappu 100 000 elaniku kohta'} else {'Enesetapud kokku'}
         bar_age <- plot_ly(
           filtered_age_by(),
-          # if(input$tunnus_all=='suicides.100k.pop')
-          # {filtered_age_by()}
-          # else
-          # {filtered_age_by_sum()} ,
             x = ~ age,
             y = ~ sum,
             type = 'bar',
@@ -688,12 +681,12 @@ server <- function(input, output) {
     })
 
     
-    #------------------------------- generation --------------------------------#
+    #------------------------------- Polvkond / generation kokku --------------------------------#
     
     filtered_generation_all <- reactive({
         data %>%
             group_by(generation) %>%
-            summarize(sum = round(sum(suicides.100k.pop)))
+            summarize(sum = round(mean(suicides.100k.pop),2))
     })
 
     output$generation_all <- renderPlotly({
@@ -714,7 +707,7 @@ server <- function(input, output) {
             filter(country == input$country) %>%
             group_by(generation) 
       if(input$tunnus_all=='suicides.100k.pop')
-      {dt <- dt %>% summarize(sum = round(mean(.data[[input$tunnus_all]])))}
+      {dt <- dt %>% summarize(sum = round(mean(.data[[input$tunnus_all]]),2))}
       else
       {dt <- dt %>% summarize(sum = round(sum(.data[[input$tunnus_all]])))}
     })
@@ -737,7 +730,7 @@ server <- function(input, output) {
       data %>%
         select(year, generation, suicides.100k.pop) %>%
         group_by(generation, year) %>%
-        summarise(mean = round(mean(suicides.100k.pop))) 
+        summarise(mean = round(mean(suicides.100k.pop),2)) 
     })
     
     
@@ -763,12 +756,12 @@ server <- function(input, output) {
     })
 
     
-    #------------------------ Statistika sugu kaupa-------------------------# 
+    #------------------------ Statistika sugu kaupa kokku-------------------------# 
 
     filtered_gender_all <- reactive({
         data %>% 
         group_by(sex) %>%
-        summarize(sum = as.integer(sum(suicides.100k.pop))) # suicides_no
+        summarize(sum = round(mean(suicides.100k.pop),2)) # suicides_no
     })
     
     output$gender_all <-  renderPlotly({
@@ -790,7 +783,7 @@ server <- function(input, output) {
             group_by(sex) 
       if(input$tunnus_all=='suicides.100k.pop')
       {
-      dt <- dt %>% summarize(sum = round(sum(.data[[input$tunnus_all]])))
+      dt <- dt %>% summarize(sum = round(mean(.data[[input$tunnus_all]]),2))
       }
       else
       {
