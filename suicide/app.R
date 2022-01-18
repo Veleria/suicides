@@ -159,40 +159,6 @@ ui <- fluidPage(
             )
         ),  
 
-        # #---------- Statistika proov ----------#
-        # 
-        # tabPanel(
-        #   "proov",
-        #   sidebarPanel(
-        #     checkboxInput("OneMore", label = h5("Kas lisada riigid?"), F),
-        #     conditionalPanel(
-        #       condition = "input.OneMore == 1",
-        #       h3("Andmed"),
-        #       selectizeInput('riigid','Riigid',choices = c("All", uniq_country), multiple = TRUE, selected = "Estonia", options = list(maxItems = 5)
-        #       ),
-        #     ),
-        #   ),
-        #   mainPanel(
-        #     fluidRow(
-        #       column(width=6,
-        #              plotlyOutput('proov')
-        #       ),
-        #       column(width=6,
-        #              # plotlyOutput("yearPlot"),
-        #       )
-        #     ),
-        #     conditionalPanel(
-        #       condition = "input.OneMore == 1",
-        #       h3("Andmed"),
-        #       # plotlyOutput('proov')
-        #     ),conditionalPanel(
-        #       condition = "input.OneMore == 0",
-        #       h3("Andmed"),
-        #       # plotlyOutput("years_trendine")
-        #     )
-        #     )
-        # ),
-        
         #---------- Statistika by World ----------#
         
         tabPanel("Maailma statistika",
@@ -203,13 +169,13 @@ ui <- fluidPage(
                      
                      # h3("Sugu riikide ja aastate kaupa"),
                      HTML("<b>Trendijoon</b> - maailma enesetappude trende aastate jooksul.</br>"),
-                     # HTML("On võimalus lisada riikide trendjooned võrdlemiseks"),                     
-                     # checkboxInput("OneMore", label = h5("Kas lisada riigid võrdlemiseks?"), F),
-                     # conditionalPanel(
-                     #   condition = "input.OneMore == 1",
-                     #   selectizeInput('riigid','Riigid',choices = c("All", uniq_country), multiple = TRUE, selected = "Estonia", options = list(maxItems = 5)
-                     #   ),
-                     # ),
+                     HTML("On võimalus lisada riikide trendjooned võrdlemiseks"),
+                     checkboxInput("OneMore", label = h5("Kas valida riigid võrdlemiseks?"), F),
+                     conditionalPanel(
+                       condition = "input.OneMore == 1",
+                       selectizeInput('riigid','Riigid',choices = c("All", uniq_country), multiple = TRUE, selected = "Estonia", options = list(maxItems = 5)
+                       ),
+                     ),
                      HTML("<b>Sugu</b> - Kui suur on meeste ja naiste enesetappude protsent maailmas? </br> 
                           Mis aastal on enesetappude arv suurem meeste ja naiste seas?</br>"),
                      HTML("<b>Vanus</b> - Mis aastal on enesetappude arv suurem vanuse kaupa? </br>
@@ -223,10 +189,19 @@ ui <- fluidPage(
                      type = "tabs",
                    tabPanel("Trendijoon",
                             fluidRow(  
+                              # column(width=8,
+                                     # h3("Trendijoon maailmas"), plotlyOutput("years_trendine")),
                               column(width=8,
-                                     h3("Trendijoon maailmas"), plotlyOutput("years_trendine")),
-                              column(width=8,
-                                     # plotlyOutput('proov')
+                                     # plotlyOutput('proov'),
+                                         conditionalPanel(
+                                           condition = "input.OneMore == 1",
+                                           h3("Andmed"),
+                                           plotlyOutput('proov')
+                                         ),conditionalPanel(
+                                           condition = "input.OneMore == 0",
+                                           h3("Andmed"),
+                                           plotlyOutput("years_trendine")
+                                         )
                             ))),
                    tabPanel("Sugu",
                       fluidRow(  
@@ -296,7 +271,7 @@ ui <- fluidPage(
               
               fluidRow(
                   #---------- Statistika vanuse kaupa-----------#
-                  column(width=4,h3("Vanuse järgi"), plotlyOutput("age_pie")),  # plotlyOutput("age_bar")
+                  column(width=4,h3("Vanuse järgi"), plotlyOutput("age_pie")), 
                   #---------- Statistika sugu kaupa-----------#       
                   column(width=4, h3("Sugu, riikide ja aastate kaupa"), plotlyOutput("gender")),  
                    #-------- Statistika  generation kaupa---------#
@@ -308,19 +283,43 @@ ui <- fluidPage(
 #-------------------------------------------------------------------- SERVERI OSA --------------------------------------------------------------------------#
 
 
-server <- function(input, output) {
+server <- function(input, output, session) {
   
-          #------------------------ Proov --------------------------#
+   #------------------------       Proov        --------------------------#
           
           filtered_riik <- reactive({
             validate(
               need(input$riigid != "", "Palun valige riik")
             )
             data %>%  
-              filter(country == input$riigid) %>%
               group_by(country, year) %>% 
-              summarize(mean = round(mean(suicides.100k.pop), 2)) #sum(suicides_no) / sum(population)) * 100000, 2)) # 
+              # filter(country == input$riigid) %>%
+              summarize(mean = round(mean(suicides.100k.pop), 2)) #sum(suicides_no) / sum(population)) * 100000, 2))
           })
+          
+          # output$proov <- renderPlotly({
+          #   # trendine <-
+          #   #   plot_ly(
+          #   #     filtered_riik(),
+          #   #     x = ~ year,
+          #   #     y = ~ mean,
+          #   #     name = "keskmine", 
+          #   #     color = ~mean,
+          #   #     type = 'scatter',
+          #   #     mode = 'lines+markers'
+          #   #   )
+          #   # trendine <- trendine %>% layout(yaxis = list(title = 'Enesetappu 100 000 elaniku kohta'), xaxis = list(title = 'Aastad')) %>% hide_legend()
+          #   # # trendine <- trendine %>% add_trace(y = mean_all, type = "scatter", mode = "lines", name = " ", line = list(width = 1, dash = 'dash'),
+          #   #                                    # hovertemplate = paste("Keskmine %{y:.2f} kokku" )) %>% colorbar(title = "Keskmine") # %>%
+          #   # # hide_colorbar(trendine)
+          #   
+          #   trendine <-
+          #     plot_ly(filtered_riik(), x = ~ year, y = ~ mean, name = "keskmine", color = ~mean, mode = 'lines+markers') %>%
+          #     filter(country %in% input$riigid) %>%
+          #     group_by(country) %>%
+          #     add_lines()
+          #   trendine <- trendine %>% layout(yaxis = list(title = 'Enesetappu 100 000 elaniku kohta'), xaxis = list(title = 'Aastad')) %>% hide_legend()
+          # })
           
           output$proov <- renderPlotly({
             trendine <-
@@ -328,17 +327,30 @@ server <- function(input, output) {
                 filtered_riik(),
                 x = ~ year,
                 y = ~ mean,
-                name = "keskmine", 
-                color = ~mean,
-                type = 'scatter',
-                mode = 'lines+markers'
-              )
-            trendine <- trendine %>% layout(yaxis = list(title = 'Enesetappu 100 000 elaniku kohta'), xaxis = list(title = 'Aastad')) %>% hide_legend()
-            trendine <- trendine %>% add_trace(y = mean_all, type = "scatter", mode = "lines", name = " ", line = list(width = 1, dash = 'dash'),
-                                               hovertemplate = paste("Keskmine %{y:.2f} kokku" )) %>% colorbar(title = "Keskmine") # %>%
+                name = " ",
+                color = ~ country,
+                # type = 'scatter',
+                mode = 'markers',
+                marker = list(size = 6),
+                hovertemplate = paste(
+                  "%{x:.0f} aastal <br>%{y:.2f} enesetappu <br>100t/elaniku kohta"
+                )
+              ) %>%
+              filter(country %in% input$riigid) %>%
+              group_by(country) %>%
+              add_lines()
+            # trendine <- trendine %>% add_trace(y = mean_all, type = "scatter", mode = "lines" ,marker = list(size = 0), name = " ", line = list(width = 1, dash = 'dash'))
+            trendine <-
+              trendine %>% layout(
+                yaxis = list(title = 'Enesetappu 100 000 elaniku kohta'),
+                xaxis = list(title = 'Aastad'),
+                hovertemplate = paste("Keskmine %{y:.2f} kokku")
+              ) %>% colorbar(title = "Keskmine") %>% hide_legend()
+            
             # hide_colorbar(trendine)
           })
-  
+          
+
                 #------------------------ Tekst --------------------------#
   
   output$year1 <- renderText({ 
@@ -350,12 +362,6 @@ server <- function(input, output) {
   })
   
   output$year3 <- renderText({
-    # min <- data %>%  
-    #   filter(country == input$country) %>%
-    #   summarize(min = min(year))
-    # # min <- min[0]
-    # min <- as.integer(min)
-    # paste("Enesetapud ", min, " kuni ", input$slider_years_gpaph[2]," aastate jooksul ",input$country," riigis", sep ="")
     paste("Enesetapud ", input$slider_years_gpaph[1], " kuni ", input$slider_years_gpaph[2]," aastate jooksul ",input$country," riigis", sep ="")
   })
   
@@ -370,7 +376,6 @@ server <- function(input, output) {
     # min <- min[0]
     # min <- as.integer(min)
     paste0(input$country, " riigis minimaalne aasta on ", min)
-      
   })
   
   output$year_min_slider <- renderText({
@@ -617,17 +622,6 @@ server <- function(input, output) {
             plot_ly(type='pie', labels = ~age, values = ~mean, textinfo='label+percent')
     })
 
-    # output$age_bar_world <- renderPlotly({
-    #     bar_age <- plot_ly(
-    #         filtered_age_world(),
-    #         x = ~ age,
-    #         y = ~ mean,
-    #         type = 'bar',
-    #         name = 'Sum'
-    #     )
-    #     bar_age <- bar_age %>% layout(yaxis = list(title = 'Enesetappu 100 000 elaniku kohta'), xaxis = list(title = 'Vanus'), barmode = 'stack')
-    # })
-    
     filtered_trend_age <- reactive({
       data %>%
         select(year, age, suicides.100k.pop) %>%
